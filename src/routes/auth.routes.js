@@ -15,10 +15,11 @@ router.post('/register', async (req, res) => {
     process.env.JWT_SECRET
   )
 
-  res.status(200).json({
+  res.cookie('token', token)
+
+  res.status(201).json({
     message: 'User registered successfully',
     user,
-    token,
   })
 })
 
@@ -49,7 +50,8 @@ router.post('/login', async (req, res) => {
 })
 
 router.get('/user', async (req, res) => {
-  const { token } = req.body
+  const { token } = req.cookies
+  
   if (!token) {
     return res.status(401).json({
       message: 'Unauthorized',
@@ -59,12 +61,14 @@ router.get('/user', async (req, res) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
 
-    const user = await userModel.findOne({
-      _id: decoded.id,
-    }).select("-password-__v")
+    const user = await userModel
+      .findOne({
+        _id: decoded.id,
+      })
+      .select('-password-__v')
 
     res.status(200).json({
-      message: 'User fetched successfully', 
+      message: 'User fetched successfully',
       user,
     })
   } catch (err) {
