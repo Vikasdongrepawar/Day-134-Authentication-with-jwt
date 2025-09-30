@@ -1,6 +1,6 @@
 const express = require('express')
 const userModel = require('../models/user.model')
-
+const jwt = require('jsonwebtoken')
 const router = express.Router()
 
 router.post('/register', async (req, res) => {
@@ -8,38 +8,70 @@ router.post('/register', async (req, res) => {
 
   const user = await userModel.create({ username, password })
 
+  const token = jwt.sign(
+    {
+      id: user._id,
+    },
+    process.env.JWT_SECRET
+  )
+
   res.status(200).json({
     message: 'User registered successfully',
     user,
+    token,
   })
 })
-
 
 router.post('/login', async (req, res) => {
   const { username, password } = req.body
 
-  const user= await userModel.findOne({
-    username:username
+  const user = await userModel.findOne({
+    username: username,
   })
 
-  if(!user){
+  if (!user) {
     return res.status(401).json({
-      message: 'Invalid credentials'
+      message: 'Invalid credentials',
     })
   }
 
   const isPasswordValid = password == user.password
 
-  if(!isPasswordValid){  
+  if (!isPasswordValid) {
     return res.status(401).json({
-      message: 'Invalid credentials'
+      message: 'Invalid credentials',
     })
   }
 
-  res.status(200).json({
+  res.status(201).json({
     message: 'Login successful',
   })
-  
+})
+
+router.get('/user', async (req, res) => {
+  const { token } = req.body
+  if (!token) {
+    return res.status(401).json({
+      message: 'Unauthorized',
+    })
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET)
+
+    const user = await userModel.findOne({
+      _id: decoded.id,
+    }).select("-password-__v")
+
+    res.status(200).json({
+      message: 'User fetched successfully', 
+      user,
+    })
+  } catch (err) {
+    return res.status(401).json({
+      message: 'Unauthorized - invalid   Token',
+    })
+  }
 })
 
 module.exports = router
